@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/state/app_state.dart';
+import '../nutrition_api/food_search_screen.dart';
+import '../nutrition_api/weather_advisor_card.dart';
 
 /// Dashboard Screen — Core Hub with Dynamic Recovery Score, Calorie Rings & Fast-Logger
 class DashboardScreen extends StatelessWidget {
@@ -450,6 +452,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+                const WeatherAdvisorCard(),
                 const SizedBox(height: 16),
 
                 // --- TOP FEATURE 3: DAILY GOAL PROGRESS RINGS & NUTRITION ---
@@ -632,6 +635,78 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+
+                // --- PUBLIC REST API INTEGRATION: SEARCH OPEN FOOD FACTS DATABASE ---
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1E3A8A).withValues(alpha: 0.25),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const FoodSearchScreen()),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(Icons.cloud_sync, color: Colors.white, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Search Food & Nutrition API',
+                                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                      ),
+                                      SizedBox(width: 6),
+                                      Icon(Icons.bolt, color: Colors.amber, size: 14),
+                                    ],
+                                  ),
+                                  SizedBox(height: 2),
+                                  Text(
+                                    'Live Open Food Facts Database • Custom Serving Scaler',
+                                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 14),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 24),
 

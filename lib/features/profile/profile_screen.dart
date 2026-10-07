@@ -371,7 +371,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 20),
           const Center(
             child: Text(
-              'FitPulse v2.0.0 (Week 3 Interactive Release)',
+              'FitPulse v3.0.0 (Week 4 Public API & Async Release)',
               style: TextStyle(color: AppColors.textMuted, fontSize: 11),
             ),
           ),
