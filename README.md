@@ -1,4 +1,4 @@
-# FitPulse — Smart Strength & Habit Ecosystem (Week 3 Submission)
+# FitPulse — Smart Strength & Habit Ecosystem
 
 [![Framework](https://img.shields.io/badge/Framework-Flutter_3.29-02569B?logo=flutter)]()
 [![Language](https://img.shields.io/badge/Language-Dart_3.7-0175C2?logo=dart)]()
