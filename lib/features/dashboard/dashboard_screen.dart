@@ -452,7 +452,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const WeatherAdvisorCard(),
+                const RepaintBoundary(child: WeatherAdvisorCard()),
                 const SizedBox(height: 16),
 
                 // --- TOP FEATURE 3: DAILY GOAL PROGRESS RINGS & NUTRITION ---
@@ -483,8 +483,9 @@ class DashboardScreen extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      Stack(
-                        alignment: Alignment.center,
+                      RepaintBoundary(
+                        child: Stack(
+                          alignment: Alignment.center,
                         children: [
                           SizedBox(
                             height: 140,
@@ -513,7 +514,8 @@ class DashboardScreen extends StatelessWidget {
                           )
                         ],
                       ),
-                      const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
                       const Divider(color: AppColors.border),
                       const SizedBox(height: 12),
                       Row(

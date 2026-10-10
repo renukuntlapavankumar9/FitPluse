@@ -11,26 +11,84 @@ import 'package:http/http.dart' as http;
 import '../models/food_item_model.dart';
 import 'api_exception.dart';
 
+class CachedFoodResult {
+  final List<FoodItem> items;
+  final DateTime timestamp;
+  int hitCount;
+
+  CachedFoodResult({
+    required this.items,
+    required this.timestamp,
+    this.hitCount = 0,
+  });
+
+  bool isExpired(Duration ttl) => DateTime.now().difference(timestamp) > ttl;
+}
+
 class FoodApiService {
   final http.Client _client;
   static const String _primaryBaseUrl = 'https://world.openfoodfacts.net';
   static const String _backupBaseUrl = 'https://world.openfoodfacts.org';
   static const Duration _defaultTimeout = Duration(seconds: 8);
+  final Duration cacheTtl;
 
-  FoodApiService({http.Client? client}) : _client = client ?? http.Client();
+  // In-Memory Performance Cache (Key: normalized lowercase query)
+  final Map<String, CachedFoodResult> _memoryCache = {};
+  int _cacheHits = 0;
+  int _cacheMisses = 0;
+
+  FoodApiService({
+    http.Client? client,
+    this.cacheTtl = const Duration(minutes: 15),
+  }) : _client = client ?? http.Client();
+
+  /// Performance Cache Statistics
+  Map<String, dynamic> get cacheStats => {
+        'cachedEntries': _memoryCache.length,
+        'cacheHits': _cacheHits,
+        'cacheMisses': _cacheMisses,
+        'hitRatio': (_cacheHits + _cacheMisses) == 0
+            ? 0.0
+            : _cacheHits / (_cacheHits + _cacheMisses),
+      };
+
+  /// Clears in-memory query cache and resets performance counters
+  void clearCache() {
+    _memoryCache.clear();
+    _cacheHits = 0;
+    _cacheMisses = 0;
+  }
 
   /// Asynchronously searches Open Food Facts database by query string.
   /// 
   /// - [query]: Search terms (e.g., 'oats', 'chicken breast', 'protein bar')
   /// - [pageSize]: Number of items to retrieve (default: 12)
+  /// - [bypassCache]: Force fresh network request if true
   /// 
   /// Returns a Future list of parsed [FoodItem] domain models.
   /// Throws typed [ApiException] subclasses on network, timeout, or parsing faults.
-  Future<List<FoodItem>> searchFood(String query, {int pageSize = 12}) async {
-    final sanitizedQuery = query.trim();
+  Future<List<FoodItem>> searchFood(
+    String query, {
+    int pageSize = 12,
+    bool bypassCache = false,
+  }) async {
+    final sanitizedQuery = query.trim().toLowerCase();
     if (sanitizedQuery.isEmpty) {
       return [];
     }
+
+    // --- Performance Optimization: Check In-Memory Cache First (<1ms response) ---
+    if (!bypassCache && _memoryCache.containsKey(sanitizedQuery)) {
+      final cached = _memoryCache[sanitizedQuery]!;
+      if (!cached.isExpired(cacheTtl)) {
+        cached.hitCount++;
+        _cacheHits++;
+        return cached.items;
+      } else {
+        _memoryCache.remove(sanitizedQuery);
+      }
+    }
+    _cacheMisses++;
 
     // Try primary high-availability CDN endpoint first, fallback to backup
     for (final baseUrl in [_primaryBaseUrl, _backupBaseUrl]) {
@@ -69,6 +127,11 @@ class FoodApiService {
             }
           }
         }
+        // Store in high-speed performance cache
+        _memoryCache[sanitizedQuery] = CachedFoodResult(
+          items: items,
+          timestamp: DateTime.now(),
+        );
         return items;
         } else if (response.statusCode >= 500) {
           if (baseUrl == _backupBaseUrl) {

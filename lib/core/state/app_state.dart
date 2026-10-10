@@ -403,6 +403,8 @@ class FitPulseState extends ChangeNotifier {
     notifyListeners();
   }
 
+  void logHydration(double liters) => addWater(liters);
+
   void logMeal({
     required double calories,
     required double protein,
@@ -465,6 +467,28 @@ class FitPulseState extends ChangeNotifier {
         ),
       );
     }
+    notifyListeners();
+  }
+
+  /// Resets state to baseline default values (essential for test suite isolation)
+  void resetToDefaults() {
+    _stopwatchTimer?.cancel();
+    _restTimer?.cancel();
+    isTimerRunning = false;
+    activeWorkoutSeconds = 1650;
+    restTimerSeconds = 0;
+    caloriesConsumed = 1850;
+    caloriesTarget = 2400;
+    proteinGrams = 145;
+    proteinTarget = 160;
+    carbsGrams = 210;
+    carbsTarget = 260;
+    fatsGrams = 55;
+    fatsTarget = 70;
+    waterLiters = 2.5;
+    waterTarget = 3.0;
+    currentExercise = 'Barbell Bench Press';
+    _initDefaults();
     notifyListeners();
   }
 

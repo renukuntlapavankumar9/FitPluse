@@ -1,7 +1,5 @@
 import os
 import sys
-import io
-from PIL import Image
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -208,23 +206,6 @@ def generate_report():
         run.font.color.rgb = TEXT_DARK
         return p
 
-    def get_compressed_stream(img_path):
-        if not os.path.exists(img_path):
-            return None
-        try:
-            with Image.open(img_path) as im:
-                rgb_im = im.convert('RGB')
-                w, h = rgb_im.size
-                target_w = 540
-                target_h = int(h * target_w / w)
-                resized = rgb_im.resize((target_w, target_h), Image.Resampling.LANCZOS)
-                buf = io.BytesIO()
-                resized.save(buf, format='JPEG', quality=75, optimize=True)
-                buf.seek(0)
-                return buf
-        except Exception:
-            return img_path
-
     def add_screenshot_image(path, caption, width=Inches(2.5)):
         if os.path.exists(path):
             tbl = doc.add_table(rows=1, cols=1)
@@ -237,8 +218,7 @@ def generate_report():
             p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.space_after = Pt(4)
-            stream = get_compressed_stream(path)
-            p.add_run().add_picture(stream if stream else path, width=width)
+            p.add_run().add_picture(path, width=width)
             
             cp = cell.add_paragraph()
             cp.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -267,8 +247,7 @@ def generate_report():
             p.paragraph_format.space_before = Pt(4)
             p.paragraph_format.space_after = Pt(2)
             if os.path.exists(p_img):
-                stream = get_compressed_stream(p_img)
-                p.add_run().add_picture(stream if stream else p_img, width=width)
+                p.add_run().add_picture(p_img, width=width)
             
             cp = cell.add_paragraph()
             cp.alignment = WD_ALIGN_PARAGRAPH.CENTER

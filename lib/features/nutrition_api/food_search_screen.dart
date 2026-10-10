@@ -68,6 +68,9 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
     });
   }
 
+  int _searchLatencyMs = 0;
+  bool _wasCacheHit = false;
+
   Future<void> _performSearch(String query) async {
     setState(() {
       _isLoading = true;
@@ -75,29 +78,42 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       _isOfflineMode = false;
     });
 
+    final stopwatch = Stopwatch()..start();
+    final previousHits = _apiService.cacheStats['cacheHits'] as int? ?? 0;
+
     try {
       final results = await _apiService.searchFood(query);
+      stopwatch.stop();
+      final currentHits = _apiService.cacheStats['cacheHits'] as int? ?? 0;
+      final cacheHit = currentHits > previousHits;
+
       if (mounted) {
         setState(() {
           _foodItems = results;
           _isLoading = false;
+          _searchLatencyMs = stopwatch.elapsedMilliseconds;
+          _wasCacheHit = cacheHit;
           if (results.isEmpty) {
             _errorMessage = 'No products found matching "$query". Try broader search terms.';
           }
         });
       }
     } on ApiException catch (e) {
+      stopwatch.stop();
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = e.message;
+          _searchLatencyMs = stopwatch.elapsedMilliseconds;
         });
       }
     } catch (e) {
+      stopwatch.stop();
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Network connection failed: $e';
+          _searchLatencyMs = stopwatch.elapsedMilliseconds;
         });
       }
     }
@@ -398,13 +414,50 @@ class _FoodSearchScreenState extends State<FoodSearchScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      itemCount: _foodItems.length,
-      itemBuilder: (context, index) {
-        final item = _foodItems[index];
-        return _buildFoodCard(item);
-      },
+    return Column(
+      children: [
+        // Performance & Cache Benchmark Banner
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          color: _wasCacheHit ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+          child: Row(
+            children: [
+              Icon(
+                _wasCacheHit ? Icons.bolt : Icons.speed,
+                size: 16,
+                color: _wasCacheHit ? const Color(0xFF16A34A) : AppColors.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _wasCacheHit
+                      ? '⚡ Optimized In-Memory Cache: Served ${_foodItems.length} items in ${_searchLatencyMs}ms (0 network calls)'
+                      : '🌐 Live Network Fetch: Retrieved ${_foodItems.length} items in ${_searchLatencyMs}ms',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _wasCacheHit ? const Color(0xFF15803D) : AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: _foodItems.length,
+            addRepaintBoundaries: true,
+            addAutomaticKeepAlives: false,
+            cacheExtent: 350.0,
+            itemBuilder: (context, index) {
+              final item = _foodItems[index];
+              return RepaintBoundary(child: _buildFoodCard(item));
+            },
+          ),
+        ),
+      ],
     );
   }
 

@@ -17,7 +17,11 @@ class FakeFoodApiService extends FoodApiService {
   FakeFoodApiService(this.onSearch);
 
   @override
-  Future<List<FoodItem>> searchFood(String query, {int pageSize = 12}) {
+  Future<List<FoodItem>> searchFood(
+    String query, {
+    int pageSize = 12,
+    bool bypassCache = false,
+  }) {
     return onSearch(query);
   }
 }

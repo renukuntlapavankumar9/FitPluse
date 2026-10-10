@@ -23,10 +23,30 @@ class CityCoordinates {
   });
 }
 
+class CachedWeatherResult {
+  final WeatherForecast forecast;
+  final DateTime timestamp;
+  int hitCount;
+
+  CachedWeatherResult({
+    required this.forecast,
+    required this.timestamp,
+    this.hitCount = 0,
+  });
+
+  bool isExpired(Duration ttl) => DateTime.now().difference(timestamp) > ttl;
+}
+
 class WeatherApiService {
   final http.Client _client;
   static const String _baseUrl = 'https://api.open-meteo.com/v1/forecast';
   static const Duration _defaultTimeout = Duration(seconds: 8);
+  final Duration cacheTtl;
+
+  // In-Memory Performance Cache (Key: "lat,long")
+  final Map<String, CachedWeatherResult> _memoryCache = {};
+  int _cacheHits = 0;
+  int _cacheMisses = 0;
 
   // Pre-configured fitness training hubs
   static const List<CityCoordinates> popularCities = [
@@ -39,18 +59,55 @@ class WeatherApiService {
     CityCoordinates(name: 'Tokyo', latitude: 35.6762, longitude: 139.6503),
   ];
 
-  WeatherApiService({http.Client? client}) : _client = client ?? http.Client();
+  WeatherApiService({
+    http.Client? client,
+    this.cacheTtl = const Duration(minutes: 30),
+  }) : _client = client ?? http.Client();
+
+  /// Performance Cache Statistics
+  Map<String, dynamic> get cacheStats => {
+        'cachedEntries': _memoryCache.length,
+        'cacheHits': _cacheHits,
+        'cacheMisses': _cacheMisses,
+        'hitRatio': (_cacheHits + _cacheMisses) == 0
+            ? 0.0
+            : _cacheHits / (_cacheHits + _cacheMisses),
+      };
+
+  /// Clears in-memory weather cache
+  void clearCache() {
+    _memoryCache.clear();
+    _cacheHits = 0;
+    _cacheMisses = 0;
+  }
 
   /// Asynchronously fetches outdoor meteorological conditions for athletic training.
   /// 
   /// - [latitude]: Geographical latitude coordinate
   /// - [longitude]: Geographical longitude coordinate
   /// - [cityName]: Display name of the city
+  /// - [bypassCache]: Force fresh network request if true
   Future<WeatherForecast> fetchOutdoorTrainingConditions({
     double latitude = 17.3850,
     double longitude = 78.4867,
     String cityName = 'Hyderabad',
+    bool bypassCache = false,
   }) async {
+    final cacheKey = '$latitude,$longitude';
+
+    // --- Performance Optimization: Check In-Memory Cache (<1ms response) ---
+    if (!bypassCache && _memoryCache.containsKey(cacheKey)) {
+      final cached = _memoryCache[cacheKey]!;
+      if (!cached.isExpired(cacheTtl)) {
+        cached.hitCount++;
+        _cacheHits++;
+        return cached.forecast;
+      } else {
+        _memoryCache.remove(cacheKey);
+      }
+    }
+    _cacheMisses++;
+
     final uri = Uri.parse(
       '$_baseUrl?latitude=$latitude&longitude=$longitude&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m',
     );
@@ -74,7 +131,12 @@ class WeatherApiService {
           throw ParsingException('Received invalid meteorological JSON data.', originalError: e);
         }
 
-        return WeatherForecast.fromJson(jsonResponse, cityName: cityName);
+        final forecast = WeatherForecast.fromJson(jsonResponse, cityName: cityName);
+        _memoryCache[cacheKey] = CachedWeatherResult(
+          forecast: forecast,
+          timestamp: DateTime.now(),
+        );
+        return forecast;
       } else {
         throw ServerException(
           'Weather service returned HTTP error code ${response.statusCode}.',
